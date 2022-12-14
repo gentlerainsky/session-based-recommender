@@ -1,11 +1,9 @@
 import math
-from typing import Tuple
 
 import torch
 from torch import nn, Tensor
 import torch.nn.functional as F
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
-from torch.utils.data import dataset
 
 
 class PositionalEncoding(nn.Module):
@@ -22,27 +20,21 @@ class PositionalEncoding(nn.Module):
         self.register_buffer('pe', pe)
 
     def forward(self, x: Tensor) -> Tensor:
-        """
-        Args:
-            x: Tensor, shape [seq_len, batch_size, embedding_dim]
-        """
         x = x + self.pe[:x.size(0)]
         return self.dropout(x)
 
 
 class TransformerModel(nn.Module):
-
-    def __init__(self, ntoken: int, d_model: int, nhead: int, d_hid: int,
+    def __init__(self, num_token: int, d_model: int, nhead: int, d_hid: int,
                  nlayers: int, pad_id: int = 0, dropout: float = 0.5):
         super().__init__()
-        self.model_type = 'Transformer'
         self.pos_encoder = PositionalEncoding(d_model, dropout)
         encoder_layers = TransformerEncoderLayer(d_model, nhead, d_hid, dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
-        self.encoder = nn.Embedding(ntoken, d_model, padding_idx=pad_id)
+        self.encoder = nn.Embedding(num_token, d_model, padding_idx=pad_id)
+        self.pad_id = pad_id
         self.d_model = d_model
-        self.decoder = nn.Linear(d_model, ntoken)
-
+        self.decoder = nn.Linear(d_model, num_token)
         self.init_weights()
 
     def init_weights(self) -> None:
@@ -51,25 +43,14 @@ class TransformerModel(nn.Module):
         self.decoder.bias.data.zero_()
         self.decoder.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, src: Tensor, src_key_padding_mask: Tensor) -> Tensor:
-        """
-        Args:
-            src: Tensor, shape [seq_len, batch_size]
-            src_mask: Tensor, shape [seq_len, seq_len]
-
-        Returns:
-            output Tensor of shape [seq_len, batch_size, ntoken]
-        """
+    def forward(self, src: Tensor) -> Tensor:
+        # Because we use padding to pad item sequence.
+        # We have to mask them so the model doesn't try to learn from them.
+        src_key_padding_mask = (src != self.pad_id).float().detach().T
         src = self.encoder(src) * math.sqrt(self.d_model)
         src = self.pos_encoder(src)
         output = self.transformer_encoder(src, src_key_padding_mask=src_key_padding_mask)
-        # global average pooling
-        # output = output.mean(dim=0)
         output = self.decoder(output)
         output = F.softmax(output)
         return output
 
-
-def generate_mask(input_sequences) -> Tensor:
-    """Generates an upper-triangular matrix of -inf, with zeros on diag."""
-    return (input_sequences != 0).float()

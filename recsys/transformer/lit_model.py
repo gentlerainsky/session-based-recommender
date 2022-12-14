@@ -1,7 +1,7 @@
 import torch
 from pytorch_lightning import LightningModule
 
-from recsys.transformer.model import TransformerModel, generate_mask
+from recsys.transformer.model import TransformerModel
 from recsys.session_dataset import SessionDataset
 from recsys.transformer.dataloader import TransformerDataLoader
 from recsys.preprocessor import get_product_index_map
@@ -35,10 +35,8 @@ class LitTransformerModel(LightningModule):
         )
         self.start_with = 2
         self.product_id_to_index, self.product_index_to_id = get_product_index_map(self.train_session_df, start_with=self.start_with)
-        # (self, ntoken: int, d_model: int, nhead: int, d_hid: int,
-        #     nlayers: int, dropout: float = 0.5)
         self.model = TransformerModel(
-            ntoken=len(self.product_id_to_index) + self.start_with,
+            num_token=len(self.product_id_to_index) + self.start_with,
             d_model=100,
             nhead=2,
             d_hid=100,
@@ -57,8 +55,11 @@ class LitTransformerModel(LightningModule):
         input, target = batch
         input = input.to(self.device)
         target = target.to(self.device)
-        src_key_padding_mask = generate_mask(input).to(self.device).detach()
-        logits = self.model(input, src_key_padding_mask.T)
+        logits = self.model(input)
+        # Calculate loss by reshape the `(sequence_length, batch, num_item)`
+        # to `(sequence_length * batch, num_item)` which can be accepted by
+        # the loss function. `target` is reshaped to be a vector of length
+        # `sequence_length * batch` as well.
         loss = self.loss_criterion(
             logits.transpose(0, 1).reshape(-1, logits.transpose(0, 1).shape[-1]),
             target.reshape(-1)
@@ -70,13 +71,15 @@ class LitTransformerModel(LightningModule):
 
         input = input.to(self.device)
         target = target.to(self.device)
-        src_key_padding_mask = generate_mask(input).to(self.device).detach()
-        logits = self.model(input, src_key_padding_mask.T)
+        logits = self.model(input)
         
         loss = self.loss_criterion(
             logits.transpose(0, 1).reshape(-1, logits.transpose(0, 1).shape[-1]),
             target.reshape(-1)
         )
+        # The transformer model produce the whole sequence as an output.
+        # But we only care about the last item of each sequence so we select
+        # only the last one for evaluation.
         recall, mrr = evaluate(logits.transpose(0, 1)[:, -1, :], target[:, -1], k=self.topk)
         return loss, recall, mrr
 
@@ -114,10 +117,8 @@ class LitTransformerModel(LightningModule):
 
         input = input.to(self.device)
         target = target.to(self.device)
-
-        seq_len = input.size(0)
-        src_key_padding_mask = generate_mask(input).to(self.device).detach()
-        logits = self.model(input, src_key_padding_mask.T)
+        
+        logits = self.model(input)
         
         loss = self.loss_criterion(
             logits.transpose(0, 1).reshape(-1, logits.transpose(0, 1).shape[-1]),

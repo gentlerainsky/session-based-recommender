@@ -29,9 +29,9 @@ class LitGRUModel(LightningModule):
         self.test_session_df = test_session_df
         self.product_id_to_index, self.product_index_to_id = get_product_index_map(self.train_session_df)
         self.model = GRU4REC(
-            len(self.product_id_to_index),
-            100,
-            len(self.product_id_to_index),
+            input_size=len(self.product_id_to_index),
+            hidden_size=100,
+            output_size=len(self.product_id_to_index),
             embedding_dim=100,
             batch_size=self.batch_size
         )
@@ -45,7 +45,6 @@ class LitGRUModel(LightningModule):
         return x
 
     def reset_end_session_hidden(self, hidden, mark):
-        """This function resets hidden state when some sessions terminate"""
         if len(mark) != 0:
             hidden[:, mark, :] = 0
         return hidden
@@ -54,9 +53,11 @@ class LitGRUModel(LightningModule):
         input, target, mark = batch
         input = input.to(self.device)
         target = target.to(self.device)
+        # Resets hidden state for terminated sessions
         self.hidden_state = self.reset_end_session_hidden(self.hidden_state, mark)
         self.hidden_state = self.hidden_state.to(self.device).detach()
         logit, self.hidden_state = self(input, self.hidden_state)
+        # Select the probability of the target items
         logit_sampled = logit[:, target.view(-1)]
         loss = self.loss_criterion(logit_sampled)
         return loss
@@ -70,6 +71,9 @@ class LitGRUModel(LightningModule):
         logit, self.val_hidden_state = self.model(input, self.val_hidden_state)
         logit_sampled = logit[:, target.view(-1)]
         loss = self.loss_criterion(logit_sampled)
+        # Because the GRU learns from item to item instead of session to session,
+        # We only calculate the evaluation metrics for the recommendation of the final item
+        # of a session to make it comparable with other models.
         if len(mark) >= 0:
             recall, mrr = evaluate(logit[mark,:], target[mark], k=self.top_k)
             return loss, recall, mrr
@@ -89,6 +93,8 @@ class LitGRUModel(LightningModule):
         for out in outs:
             loss, recall, mrr = out
             losses.append(loss)
+            # From the validation_step(), we calculate only when recal and mrr
+            # are from the recommendation of the final item of a session.
             if recall is not None:
                 recalls.append(recall)
             if mrr is not None:
