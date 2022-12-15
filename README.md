@@ -38,14 +38,14 @@ In valuation set (Sessions data in January 2021)
 | Model        | Recall@20  | MRR@20 |
 | -------------| -----------|--------|
 | RNN with GRU | 0.3115     | 0.1317 |
-| Transformer  | 0.0664     | 0.0169 |
+| Transformer  | 0.0647     | 0.0198 |
 
 In testing set (Session data in February 2021)
 
 | Model        | Recall@20  | MRR@20 |
 | -------------| -----------|--------|
 | RNN with GRU | 0.2922     | 0.1242 |
-| Transformer  | 0.0596     | 0.0153 |
+| Transformer  | 0.0581     | 0.0173 |
 
 ### Work Breakdown
 
@@ -68,6 +68,7 @@ In testing set (Session data in February 2021)
 ### Run
 
 - `./script/preprocess_datafile.py` - Preprocess and train/val/test split the dataset.
+    - Dataset is obtained from [eCommerce events history in electronics store](https://www.kaggle.com/datasets/mkechinov/ecommerce-events-history-in-electronics-store)
 - `./gru.ipynb` - Notebook for the RNN with GRU Model.
 - `./transformer.ipynb` - Notebook for the Transformer Model.
 

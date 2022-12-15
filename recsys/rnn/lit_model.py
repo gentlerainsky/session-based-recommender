@@ -27,6 +27,11 @@ class LitGRUModel(LightningModule):
         self.train_session_df = train_session_df
         self.val_session_df = val_session_df
         self.test_session_df = test_session_df
+        print(
+            f"train_session_df.shape={self.train_session_df.shape}, "
+            + f"val_session_df.shape={self.val_session_df.shape}, "
+            + f"test_session_df.shape={self.test_session_df.shape}"
+        )
         self.product_id_to_index, self.product_index_to_id = get_product_index_map(self.train_session_df)
         self.model = GRU4REC(
             input_size=len(self.product_id_to_index),

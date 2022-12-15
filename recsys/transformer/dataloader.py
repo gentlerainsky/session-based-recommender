@@ -13,7 +13,7 @@ class TransformerDataLoader():
             [15, 24],
             [50, 99, 123, 145, 214]
         ]
-    2. We left pad each session with `padding_token` to have the same length of `max_sequence_length`.
+    2. We left-pad each session with `padding_token` to have the same length of `max_sequence_length`.
         We trimmed longer sessions by removing older items.
         For example, with `max_sequence_length` = 4 and `padding_token` = 0
         [
@@ -29,13 +29,21 @@ class TransformerDataLoader():
             [0, 0,  15, 1],
             [99, 123, 145, 1]
         ]
+    4. We try masking more item in the sequence and let the model attempts
+        to predict the original sequence.
+        For example,
+        From
+        [ 5, 50, 99, 123, 145, 1 ]
+        To
+        [ 5, 1, 99, 123, 145, 1 ]
     """
-    def __init__(self, dataset, max_sequence_length=10, batch_size=50, padding_token=0):
+    def __init__(self, dataset, max_sequence_length=10, batch_size=50, padding_token=0, random_mask_prob=0.2):
         self.dataset = dataset
         self.batch_size = batch_size
         self.max_sequence_length = max_sequence_length
         self.padding_token = padding_token
         self.input_mask = 1
+        self.random_mask_prob = random_mask_prob
 
     def pad(self, values):
         """Left pad every session with `padding_token` until it has the length of `max_sequence_length`"""
@@ -62,17 +70,31 @@ class TransformerDataLoader():
             # Get the session information of the current batch
             batch_session_ids = [self.dataset.session_ids[i] for i in session_idxs[idx: idx+self.batch_size]]
 
-            def get_product_list(df):
-                product_list = df.product_index.values.tolist()
-                product_list = self.pad(product_list)
+            def get_product_list(df, is_random_mask):
+                product_list = df.product_index.values
+                if is_random_mask and self.random_mask_prob > 0:
+                    if len(product_list) > 5:
+                        # Randomly mask item in the seqeunce. This is in hope that the model
+                        # can have something more to learn from.
+                        if np.random.rand() > 0.5:
+                            list_length = len(product_list)
+                            indices = np.random.choice(
+                                np.arange(list_length) - 1, size=int(np.floor((list_length - 1) * self.random_mask_prob)),
+                                replace=False
+                            ).astype(int)
+                            product_list[indices] = self.input_mask
+                product_list = self.pad(product_list.tolist())
                 # Trim the session to limit the length of each sequence to be at most `max_sequence_length`
                 # by removing older events.
                 product_list = product_list[-(self.max_sequence_length):]
                 return product_list
 
-            rows = df.loc[batch_session_ids].groupby(level=0).apply(get_product_list).values.tolist()
+            rows = df.loc[batch_session_ids].groupby(level=0).apply(lambda df: get_product_list(df, False)).values.tolist()
             y = np.array(rows, dtype=np.long)
-            x = y.copy()
+            
+            rows = df.loc[batch_session_ids].groupby(level=0).apply(lambda df: get_product_list(df, True)).values.tolist()
+            x = np.array(rows, dtype=np.long)
+            # raise UnboundLocalError()
             # Mask the last item in the sequence
             x[:, -1] = self.input_mask
             yield torch.tensor(x.T), torch.tensor(y)

@@ -37,10 +37,10 @@ class LitTransformerModel(LightningModule):
         self.product_id_to_index, self.product_index_to_id = get_product_index_map(self.train_session_df, start_with=self.start_with)
         self.model = TransformerModel(
             num_token=len(self.product_id_to_index) + self.start_with,
-            d_model=100,
-            nhead=2,
-            d_hid=100,
-            nlayers=3,
+            d_model=150,
+            nhead=5,
+            d_hid=150,
+            nlayers=5,
             pad_id=0,
             dropout=0.2
         )
@@ -162,10 +162,24 @@ class LitTransformerModel(LightningModule):
                 SessionDataset(self.test_session_df, self.product_id_to_index)
 
     def train_dataloader(self):
-        return TransformerDataLoader(self.train_dataset, batch_size=self.batch_size, max_sequence_length=self.max_session_length)
+        return TransformerDataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            max_sequence_length=self.max_session_length,
+            random_mask_prob=0.2
+        )
 
     def val_dataloader(self):
-        return TransformerDataLoader(self.val_dataset, batch_size=self.batch_size, max_sequence_length=self.max_session_length)
+        return TransformerDataLoader(
+            self.val_dataset,
+            batch_size=self.batch_size,
+            max_sequence_length=self.max_session_length,
+            random_mask_prob=0
+        )
 
     def test_dataloader(self):
-        return TransformerDataLoader(self.test_dataset, batch_size=self.batch_size, max_sequence_length=self.max_session_length)
+        return TransformerDataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            max_sequence_length=self.max_session_length
+        )
