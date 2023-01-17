@@ -1,6 +1,6 @@
 import torch
+import pandas as pd
 from pytorch_lightning import LightningModule
-
 from recsys.rnn.gru_model import GRU4REC, TOP1Loss
 from recsys.session_dataset import SessionDataset
 from recsys.rnn.dataloader import RNNDataLoader
@@ -148,7 +148,6 @@ class LitGRUModel(LightningModule):
                     mrrs.append(torch.tensor(0.0).to(self.device))
                 else:
                     mrrs.append(mrr)
-        self.val_hidden_state = self.model.init_hidden(1)
         
         self.test_rank_log.append({
             "loss": torch.mean(torch.stack(losses), dim=0).item(),

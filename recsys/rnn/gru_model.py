@@ -39,7 +39,10 @@ class GRU4REC(nn.Module):
         self.fc = nn.Linear(hidden_size, output_size)
         self.final_activation = nn.ReLU()
         self.embedding = nn.Embedding(input_size, self.embedding_dim)
-        self.gru = nn.GRU(self.embedding_dim, self.hidden_size, self.num_layers, dropout=self.dropout_hidden)
+        if self.num_layers > 1:
+            self.gru = nn.GRU(self.embedding_dim, self.hidden_size, self.num_layers, dropout=self.dropout_hidden)
+        else:
+            self.gru = nn.GRU(self.embedding_dim, self.hidden_size, self.num_layers)
         self = self.to(self.device)
 
     def forward(self, input, hidden):

@@ -1,4 +1,6 @@
 import pandas as pd
+import pickle
+import os
 
 
 def preprocess(df, train_from_date=None, evaluation_from_date='2021-01-01', test_from_date='2021-02-01'):
@@ -79,4 +81,19 @@ def get_product_index_map(session_df, start_with=0):
     products = session_df.product_id.unique().tolist()
     product_id_to_index = { item: index + start_with for index, item in enumerate(products) }
     product_index_to_id = { (index + start_with): item for index, item in enumerate(products) }
+    return product_id_to_index, product_index_to_id
+
+
+def save_product_id_mapper(path, model):
+    with open(os.path.join(path, "product_id_to_index.pkl"), "wb") as output_file:
+        pickle.dump(model.product_id_to_index, output_file)
+    with open(os.path.join(path, "product_index_to_id.pkl"), "wb") as output_file:
+        pickle.dump(model.product_index_to_id, output_file)
+
+def load_product_id_mapper(path):
+    with open(os.path.join(path, "product_id_to_index.pkl"), "rb") as file:
+        product_id_to_index = pickle.load(file)
+
+    with open(os.path.join(path, "product_index_to_id.pkl"), "rb") as file:
+        product_index_to_id = pickle.load(file)
     return product_id_to_index, product_index_to_id
