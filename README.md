@@ -9,10 +9,10 @@ Student ID: 12122522
 ## Assignment 3 - Deliver
 
 ### Report
-
+[Report File](/report.pdf)
 
 ### Presentation Video
-
+https://youtu.be/gMgy8ICcxNM
 
 ### Running Demo Application
 

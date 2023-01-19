@@ -133,7 +133,7 @@ def loop(
             session_idx = random.randint(0, len(session_ids) - 1)
 
         demo_session_df = session_df.loc[session_ids[session_idx]].iloc[:-1]
-        if demo_session_df.shape[0] <= 1:
+        if demo_session_df.shape[0] <= 2:
             session_idx = None
             continue
         target = session_df.loc[session_ids[session_idx]].iloc[-1:]
